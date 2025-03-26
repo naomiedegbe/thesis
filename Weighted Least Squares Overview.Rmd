@@ -1,0 +1,132 @@
+---
+title: "Weighted Least Squares Overview"
+author: "Naomi Edegbe"
+date: "2024-10-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+Reference for this analysis is provided in Ch. 9 Special Topics in Regression, Section 9.4 Weighted Least Squares page 484 (499 pdf) in Textbook.
+
+Data
+Sample data for new construction road jobs, Example 9.4. x, miles is the length of road. y, $thousands for the winning bid price.
+```{r data}
+construction <- read_csv("construction.csv")
+construction
+```
+```{r}
+construction %>%
+  ggplot(aes(x=miles, y = bid))+
+  geom_point()+
+  theme_bw()
+
+```
+
+
+
+(a) Conduct a simple linear regression
+```{r}
+mod1 <- lm(bid ~ miles, data = construction)
+summary(mod1)
+```
+These results match the SAS printout on pg. 486 (501 pdf)
+```{r}
+anova(mod1)
+```
+(b) Calculate the regression residuals
+```{r}
+y_hat <- predict(mod1, se.fit=TRUE)
+construction$Fit <- y_hat$fit
+construction$SE <- y_hat$se.fit
+construction$Residual <- mod1$residuals
+
+construction
+```
+
+```{r}
+plot(mod1)
+```
+
+Create groups and new data frame of summaries
+```{r}
+construction <- construction %>%
+  mutate(Group = case_when(
+    miles<=4 & miles>=2 ~ 1,
+    miles<=7 & miles>-6 ~ 2,
+    TRUE ~ 3
+  ))
+
+construction2 <- construction %>%
+  group_by(Group) %>%
+  summarize(mean = mean(miles))
+construction2$resid.var <- c(3.722, 23.016, 67.031)
+construction2 <- construction2 %>%
+  mutate(f1 = resid.var/mean,
+         f2 = resid.var/mean^2,
+         f3 = resid.var/sqrt(mean))
+
+construction2
+```
+Notice, function 2 yields a value near .5 for each of the three groups. Thus, our weights will be assigned by the function $w_j = 1 / \bar{x}^2_j$.
+```{r}
+grp_weights <- 1/construction2$mean^2
+construction <- construction %>%
+  mutate(mod_weights = case_when(
+    Group == 1 ~ grp_weights[1],
+    Group == 2 ~ grp_weights[2],
+    TRUE ~ grp_weights[3]
+  ))
+
+mod2 <- lm(bid ~ miles, weights = mod_weights, data = construction)
+construction; summary(mod2); anova(mod2)
+```
+This printout matches sAS results. 
+
+```{r}
+plot(mod2)
+```
+
+The prinout looks marginally different in my opinion.
+
+
+Additional example for thesis. Data on pg. 505
+```{r}
+gaskets <- read_csv("gaskets.csv")
+gaskets <- gaskets %>%
+  mutate(Speed = as.factor(speed))
+head(gaskets)
+```
+
+```{r}
+gaskets %>%
+  group_by(Speed) %>%
+  summarize(avg = mean(defectives),
+            vari = var(defectives),
+            metric1 = vari/avg,
+            metric2 = vari/avg^2,
+            metric3 = vari/sqrt(avg))
+```
+
+```{r}
+plot(gaskets$speed, gaskets$defectives, xlab = "Speed", 
+     ylab = "Number of Defectives", main = "Gasket Speeds v. Defectives Produced")
+```
+
+
+
+```{r}
+ggplot(gaskets, aes(x=Speed, y = defectives))+
+  geom_point()+
+  labs(x="Speed", y="Number of Defectives", title ="Gasket Speeds v. Defectives Produced")+
+  theme_bw()
+```
+```{r}
+m1 <- lm(defectives ~ Speed, data = gaskets)
+plot(m1)
+```
+

@@ -1,0 +1,68 @@
+---
+title: "9.2 Piecewise Linear Regression"
+author: "Naomi Edegbe"
+date: "2024-10-10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(segmented)
+```
+
+Import data
+```{r}
+cement <- read_csv("concrete data.csv")
+head(cement)
+```
+
+Fit a linear model
+```{r}
+lm1 <- lm(CompressiveStrength ~ WaterCement, data = cement)
+summary(lm1)
+```
+
+Fit a piecewise model
+```{r}
+pw1 <- segmented(lm1, seg.Z = ~ WaterCement, psi = 58)
+summary(pw1)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(cement$WaterCement, cement$CompressiveStrength,
+     xlab = "Water Cement", ylab = "Compressive Strength",
+     main = "Compressive Strength Data")
+plot(pw1, xlab = "Water Cement", ylab = "Effect of Water Cement",
+     main = "Piecewise Model at k=68")
+
+```
+```{r}
+plot(cement$WaterCement, cement$CompressiveStrength)
+```
+
+```{r}
+pw1$model
+```
+```{r}
+ggplot(pw1, aes(x=WaterCement, y=CompressiveStrength))+
+  geom_line()
+```
+
+```{r}
+pw1$effects
+```
+
+```{r}
+cement2 <- cement %>%
+  filter(WaterCement > 70)
+cement2
+```
+
+```{r}
+lm2 <- lm(CompressiveStrength ~ WaterCement, data = cement2)
+summary(lm2)
+```
+

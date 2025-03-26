@@ -1,0 +1,113 @@
+---
+title: "Ridge Regression Overview"
+author: "Naomi Edegbe"
+date: "2024-10-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(car) #VIF function
+library(MASS) #Ridge regression
+```
+
+
+Reference for this analysis is provided in Ch. 9 Special Topics in Regression, Section 9.7 Ridge Regression page 508 in Textbook.
+
+## Data
+The data in the FTCCIGAR file contains the tar content (x1), nicotine content (x2), weight (x3), and carbon monoxide content (y) for each in a sample of 25 cigarette brands.
+```{r}
+cigar <- read_csv("FTCCIGAR.csv")
+head(cigar)
+```
+
+## Model
+E(y) = β0 + β1x1 + β2x2 + β3x3 and discovered several signs of multicollinearity.
+```{r ols model}
+lm1 <- lm(co ~ tar + nicotine + weight, data = cigar)
+summary(lm1)
+```
+The model coefficients match the SAS printout :)
+
+Next, to check the VIF
+```{r vif}
+vif(lm1)
+```
+As the VIF of tar and nicotine are high (>10), we can conclude their is an issue of multicollinearlity present in our data.
+
+```{r ridge model}
+lmr <- lm.ridge(co ~ tar + nicotine + weight, data = cigar, lambda = 0.1) #c = 0.1 in text
+lmr
+```
+
+```{r}
+lmr3 <- lm.ridge(co ~ tar + nicotine + weight, data = cigar, lambda = seq(0,10,1)) 
+lmr3$GCV
+```
+
+```{r method in meeting}
+lambda1 <- seq(0,10,0.01)
+lmr4 <- lm.ridge(co ~ tar + nicotine + weight, data = cigar, lambda = lambda1)
+gcv <- lmr4$GCV
+
+i = 1:length(gcv)
+location = i[gcv[i]==min(gcv)]
+opt.lambda = lambda1[location]
+opt.lambda
+```
+
+```{r}
+lmr5 <- lm.ridge(co ~ tar + nicotine + weight, data = cigar, lambda = opt.lambda)
+lmr5
+```
+
+
+
+
+Plot ridge regression with multiple c values
+```{r}
+plot(lm.ridge(co ~ ., cigar,
+              lambda = seq(0,0.1,0.001)))
+```
+
+```{r}
+select(lm.ridge(co ~ ., cigar,
+              lambda = seq(0,0.1,0.001)))
+```
+
+# Modeling with lmridge package
+https://journal.r-project.org/articles/RJ-2018-060/RJ-2018-060.pdf
+
+```{r}
+library(lmridge)
+```
+
+```{r}
+lmr2 <- lmridge(co ~., data = cigar, scaling = "sc", K = c(0,0.1,0.001))
+print(lmr2) #unscaled 
+```
+The coefficients for K = 0.1 matches the SAS printout.
+```{r}
+summary(lmr2)
+```
+
+
+```{r}
+vif(lmr2)
+```
+We can see at k = 0.1 that the vif estimates are close to 1. This results also matches the SAS printout. 
+
+```{r}
+plot(lmr2)
+```
+```{r correlation matrix}
+# computing correlation matrix
+cor_data = cor(cigar)
+ 
+print("Correlation matrix")
+print(cor_data)
+```
+
+# Modeling with glmnet package

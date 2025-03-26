@@ -1,0 +1,113 @@
+---
+title: "Auction Data"
+author: "Naomi Edegbe"
+date: "2024-09-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Utilize RStudio to reproduce SAS results of auction data.
+
+```{r load data}
+auction <- read_csv("auction data.csv")
+head(auction)
+```
+
+Implement linear regression.
+
+```{r model 1, echo=FALSE}
+mod1 <- lm(auction ~., data = auction)
+summary(mod1)
+
+mod2 <- lm(auction ~ age + `number of bidders` + I(age^2) + I(`number of bidders`^2), data =auction)
+summary(mod2)
+
+mod3 <- lm(auction ~ age + `number of bidders` + I(`number of bidders`^2), data =auction)
+summary(mod2)
+```
+Results are the same according to page 177.
+```{r}
+summary(mod1)$coef
+```
+```{r}
+mod1$coefficients
+```
+```{r}
+#method 2 to extract coefficients
+summary(mod1)$coef[1,1]; summary(mod1)$coef[2,1]
+```
+```{r}
+aov(mod1)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# Meeting 3 Task
+Create 4 models
+First order model:
+```{r}
+model1 <- lm(auction ~., data = auction)
+summary(model1)
+```
+
+
+First-order model + Interaction
+```{r}
+model2 <- lm(auction ~ age + `number of bidders` + age*`number of bidders`, data = auction)
+summary(model2)
+```
+Second-order model
+```{r}
+model3 <- lm(auction ~ age + `number of bidders` + I(age^2) + I(`number of bidders`^2),
+             data = auction)
+summary(model3)
+```
+Second-order model + Interaction
+```{r}
+model4 <- lm(auction ~ age + `number of bidders` + I(age^2) + I(`number of bidders`^2) +
+               age*`number of bidders`, data = auction)
+summary(model4)
+```
+
+Comparison
+```{r}
+# Extract R-squared values
+r_squared_values <- c(
+  "Model 1" = summary(model1)$r.squared,
+  "Model 2" = summary(model2)$r.squared,
+  "Model 3" = summary(model3)$r.squared,
+  "Model 4" = summary(model4)$r.squared
+)
+
+# Create a table
+r_squared_table <- data.frame(
+  Model = names(r_squared_values),
+  R_squared = r_squared_values
+)
+
+# Print the table
+print(r_squared_table)
+```
+
+Since the interaction term included in Model 2 is significant and the R-squared value increased, the interaction term has significant impact to the model. Therefore, it is better than model 1. Model 3 is not optimal since the quadratic age term is not significant. Further evaluation would potentially remove that variable from the model. As an additional consequence, Model 4, the full model compared to Model 2, only has non-significant term coefficients. Therefore, from the four models tested, I would move forward with Model 2 for my analysis. 
+
+# Meeting 4 Task
+
+Add gender as a categorical variable and create model 5 as directed. 
+```{r categorical model}
+set.seed(1)
+gender <- sample(c(0, 1), size = length(auction$age), replace = TRUE)
+auction$gender <- gender
+head(auction)
+```
+```{r model 5}
+m5 <- lm(auction ~ age + `number of bidders` + factor(gender), data = auction)
+summary(m5)
+
+```
+
