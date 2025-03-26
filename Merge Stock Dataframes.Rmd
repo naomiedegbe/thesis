@@ -1,0 +1,102 @@
+---
+title: "Stock Merged Data frames"
+author: "Naomi Edegbe"
+date: "2025-02-12"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+#get functions from R script
+source("wrangleDataFunctions.R")
+```
+
+## Data
+Stocks by their market caps:
+- 3T: Aapl, Msft, Nvdia
+- 2T: Amzn, Googl
+- 1T: Meta, Tsla, Broadcom
+
+```{r 3T aapl data}
+aaplRatio <- read_csv("stocks/aapl financialRatios(Annual).csv")
+aaplIncome <- read_csv("stocks/aapl incomeStatement(Annual).csv")
+
+```
+
+```{r 3T msft data}
+msftRatio <- read_csv("stocks/msft financialRatios(Annual).csv")
+msftIncome <- read_csv("stocks/msft incomeStatement(Annual).csv")
+
+msft <- mergeFinanceData(msftIncome, msftRatio, "MSFT")
+head(msft)
+```
+
+```{r 3T nvdia data}
+nvdaRatio <- read_csv("stocks/nvda financialRatios(Annual).csv")
+nvdaIncome <- read_csv("stocks/nvda incomeStatement(Annual).csv")
+
+nvda <- mergeFinanceData(nvdaIncome, nvdaRatio, "NVDA")
+head(nvda)
+```
+```{r 2T amzn data}
+amznRatio <- read_csv("stocks/amzn financialRatios(Annual).csv")
+amznIncome <- read_csv("stocks/amzn incomeStatement(Annual).csv")
+
+amzn <- mergeFinanceData(amznIncome, amznRatio, "AMZN")
+head(amzn)
+```
+```{r 2T google data}
+googlRatio <- read_csv("stocks/googl financialRatios(Annual).csv")
+googlIncome <- read_csv("stocks/googl incomeStatement(Annual).csv")
+
+googl <- mergeFinanceData(amznIncome, amznRatio, "GOOGL")
+head(googl)
+```
+
+
+```{r 1T meta data}
+metaRatio <- read_csv("stocks/meta financialRatios(Annual).csv")
+metaIncome <- read_csv("stocks/meta incomeStatement(Annual).csv")
+
+meta <- mergeFinanceData(metaIncome, metaRatio, "META")
+head(meta)
+```
+
+```{r tsla data}
+tslaRatio <- read_csv("stocks/tsla financialRatios(Annual).csv")
+tslaIncome <- read_csv("stocks/tsla incomeStatement(Annual).csv")
+
+tsla <- mergeFinanceData(tslaIncome, tslaRatio, "TSLA")
+head(tsla)
+```
+
+```{r broadcom}
+avgopRatio <- read_csv("stocks/avgop financialRatios(Annual).csv")
+avgopIncome <- read_csv("stocks/avgop incomeStatement(Annual).csv")
+
+avgop <- mergeFinanceData(avgopIncome, avgopRatio, "AVGOP")
+head(avgop)
+```
+
+# Vertically merge the stock data
+Failed to complete this task, determine columns first and then worry about it
+```{r}
+
+```
+
+# Produce csvs of files
+```{r produce csvs}
+#write.csv(aapl, "stocks/merge/aaplClean.csv", row.names = FALSE)
+#write.csv(amzn, "stocks/merge/amznClean.csv", row.names = FALSE)
+#write.csv(googl, "stocks/merge/googlClean.csv", row.names = FALSE)
+#write.csv(avgop, "stocks/merge/avgopClean.csv", row.names = FALSE)
+#write.csv(meta, "stocks/merge/metaClean.csv", row.names = FALSE)
+#write.csv(msft, "stocks/merge/msftClean.csv", row.names = FALSE)
+#write.csv(tsla, "stocks/merge/tslaClean.csv", row.names = FALSE)
+#write.csv(nvda, "stocks/merge/nvdaClean.csv", row.names = FALSE)
+
+```
+

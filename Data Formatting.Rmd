@@ -1,0 +1,130 @@
+---
+title: "Data Formatting"
+author: "Naomi Edegbe"
+date: "2025-02-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+
+```
+
+## Data
+
+```{r data}
+aapl <- read_csv("stocks/aapl incomeStatement(Annual).csv")
+head(aapl)
+```
+# Construction Functions
+```{r function renameColumns}
+
+renameColumns <- function(df){
+  # This function takes the first column and prepares it for the pivot table. Then it changes LTM - Last Twelve Months
+  # to LTM. Finally it removes the exact date and just keeps the year of the Annual information. The function 
+  # returns the data frame with the new columns. You may need to add the appl identifier somehow to categorize the data
+  namesOfColumns <- colnames(df)
+  namesOfColumns[1] <- "colNames"
+  namesOfColumns[2] <- "LTM"
+  namesOfColumns[3:length(namesOfColumns)] <- sapply(namesOfColumns[3:length(namesOfColumns)], function(x) substr(x, 1, 4))
+  colnames(df) <- namesOfColumns
+  return(df)
+}
+
+aapl_newCols <- renameColumns(aapl)
+head(aapl_newCols)
+```
+I am unsure if the LTM column in necessary in anyway. I will probably remove it as a column from the data frame since it gives almost the same exact information as the 2024 09-29 report date. Next, I want to change the data orientation.
+```{r function transpose dataframe}
+
+transposeData <- function(df, stockName){
+  # Input is dataframe recieved from renameCols function
+  # This function changes the orientation of the dataframe to account for each year as row entries
+  # Data from this function should be suitable for EDA. Additionally, a stock column (input 2)
+  # is added to prevent any issues that may arise from merging the dataframes.
+  
+  
+  # Step 1: Obtain column names from df
+  newNames <- df$colNames
+  # Step 2: Transpose every column but the column names
+  transposeDF <- t(df[,-1])
+  # Step 3: Assign new column names
+  colnames(transposeDF) <- newNames
+  # Step 4: Convert the transposed data back to a Data frame for better readability
+  df <- as.data.frame(transposeDF)
+  # Step 5: Make original column entries row 
+  df$Year <- rownames(df)
+
+  # Reorder columns to place the new column first
+  df <- df[, c("Year", names(df)[names(df) != "Year"])]
+  df$stock <- stockName
+  return(df)
+  
+}
+test2 <- transposeData(aapl_newCols, "aapl")
+head(test2)
+```
+# Other tasks
+1. Verify that these two functions work on other incomeStatements
+2. Create functions that are suitable for the ratio data
+3. Merge the two dataframes income and ratio data
+4. Remove columns that are not desired for analysis
+
+## 1.Verify that these two functions work on other incomeStatemetns
+```{r verify functions work on new data}
+nvda <- read_csv("stocks/nvda incomeStatement(Annual).csv")
+head(nvda)
+```
+```{r}
+# apply renameColumns function
+nvda1 <- renameColumns(nvda)
+head(nvda1)
+```
+So the function works on different data entries
+```{r}
+# apply transpose function
+nvda2 <- transposeData(nvda1, "nvda")
+head(nvda2)
+```
+
+As a result, I am just going to put both functions together.
+```{r}
+wrangleIncomeStatement <- function(df, stockName){
+  step1 <- renameColumns(df)
+  step2 <- transposeData(step1, stockName)
+  return(step2)
+}
+```
+
+```{r wrange test dataframe 3}
+msft <- read_csv("stocks/msft incomeStatement(Annual).csv")
+head(msft)
+msft1 <- wrangleIncomeStatement(msft, "MSFT")
+head(msft1)
+```
+
+## 2. Create functions that are suitable for the ratio data
+Turns out the functions made for the income statements also work for the financialRatios data.
+```{r}
+aaplRatio <- read_csv("stocks/aapl financialRatios (Annual).csv")
+head(aaplRatio)
+```
+```{r}
+aaplRatio1 <- wrangleData(aaplRatio, "AAPL")
+aaplIncome1 <- wrangleData(aapl, "AAPL")
+head(aaplRatio1)
+```
+
+## 3. Merge income and ratio data
+```{r}
+# merge dataframes with outer join. For apple data it should have 24+42 = 66 columns and 41 rows
+test3 <- merge(aaplIncome1, aaplRatio1, by = c("Year","stock"), all=TRUE)
+head(test3)
+```
+```{r}
+colnames(test3)
+```
+

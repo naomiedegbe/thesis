@@ -1,0 +1,224 @@
+---
+title: "NVDIA Stock Analysis"
+author: "Naomi Edegbe"
+date: "2025-02-25"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(car)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+## Summary
+This document will provide analysis for stocks with a 3T market cap to include Apple, Nvidia, Microsoft.
+
+## Data
+```{r data}
+nvda <- read_csv("stocks/merge/nvdaClean1.csv")
+nvda$Year <- as.numeric(nvda$Year)
+#remove last twelve months (LTM) row
+nvda <- nvda %>% filter(row_number() <= n()-1)
+head(nvda)
+```
+
+```{r}
+m0 <- lm(eps ~researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization+ cashConversionCycle+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, nvda)
+summary(m0)
+```
+While the adjusted R square is quite high, none of the predictors are significant to the model. Model 1 will include the seven variables chosen prior.
+```{r m1}
+m1 <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, nvda)
+
+summary(m1); anova(m1,m0)
+```
+We see from the p-value that this is a significant model. We may also determine from model results that R&D, Gross profit margin, and days of inventory outstanding have effects on the model. The anova, however, does provide evidence that suggests this reduced model is better than the complete model. We will check stepwise selection of the reduced model.
+
+Next, I use a stepwise selection function in R to reduce the predictors
+```{r stepwise selection}
+step(m1)
+```
+Additionally, the stepwise AIC choses the following model as best performing for potential analysis.
+```{r m2}
+m2 <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome + 
+    fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda)
+summary(m2)
+```
+The R-squared value marginally reduces with the reduced variables. Next, we test the nested vs complete model.
+```{r anova comparisons}
+anova(m2,m1)
+```
+It is interesting that the p-values for each model is significant, meaning there is sufficient evidence that the nested model does produce improvements to the model. The results in the ANOVA table, however, show that there is not an improvement in the reduced model. We move forward for m1. 
+
+
+```{r residual plots}
+plot(m1)
+```
+According to the Q-Q plot, the data is somewhat heavy-tailed. Additionally, the residual vs. fitted plot has a clustering of values about 0 on the x-axis. This may be a characteristic of this data related to the time period at which the company is climbing to their market capitalization tier (speculative ofc).
+
+```{r residual normality}
+shapiro.test(m1$residuals)
+```
+Based on the p-value (0.2278) of the test of the residuals, there is insufficient evidence to reject the null and conclude the residuals are not normally distributed. 
+
+```{r collinearity}
+car::vif(m1)
+```
+The VIF between quick and current ratio are greater than 10. Hence, there are issues of multicollinearity present in the selected model. 
+
+## NVDA Exploratory Plots:
+```{r plot against response}
+par(mfrow=c(2,3))
+plot(eps~Year, nvda)
+plot(eps~researchAndDevelopmentExpenses, nvda)
+plot(eps~grossProfitMargin, nvda)
+plot(eps~quickRatio, nvda)
+plot(eps~daysOfInventoryOutstanding, nvda)
+```
+P1: Over time, the eps of the appl stock rose. 
+P2: R&D and EPS appear to have a positive linear relationship.
+P3: There is a strange peak about 40% for grossProfitMargin.
+P4: Quick ratio and EPS appear to have a negative linear relationship.
+P5: Lower days of inventory outstanding has a positive influence on eps. 
+
+```{r plot with other explanatory}
+par(mfrow=c(2,3))
+plot(grossProfitMargin~researchAndDevelopmentExpenses, nvda)
+plot(researchAndDevelopmentExpenses~quickRatio, nvda)
+plot(currentRatio~quickRatio, nvda)
+plot(grossProfitMargin~quickRatio, nvda)
+plot(grossProfitMargin~daysOfInventoryOutstanding, nvda)
+```
+Substantiating the VIF, the relationship between current and quick ratio for the stock appears to be perfectly linear. A way to go about this is either utilizing ridge regression. Or removing either variable and testing the anova results for the nested model.
+
+```{r correlation matrix}
+# computing correlation matrix
+cor_data = cor(nvda[,c(4:10,12)])
+ 
+print("Correlation matrix")
+print(cor_data)
+```
+The correlation matrix may also be helpful for interpretation. 
+
+# Ridge Regression
+```{r ridge regression}
+library(MASS)
+lmr0 <- lm.ridge(eps ~ researchAndDevelopmentExpenses + interestIncome + currentRatio + 
+    quickRatio + grossProfitMargin + fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda, lambda = seq(0,10,1)) 
+lmr0$GCV
+```
+```{r method in meeting}
+lambda1 <- seq(0,10,0.01)
+lmr0 <- lm.ridge(eps ~ researchAndDevelopmentExpenses + interestIncome + currentRatio + 
+    quickRatio + grossProfitMargin + fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda, lambda = lambda1)
+gcv <- lmr0$GCV
+
+i = 1:length(gcv)
+location = i[gcv[i]==min(gcv)]
+opt.lambda = lambda1[location]
+opt.lambda
+```
+Given a sequence of lambda values. We chose the lamdba which minimizes the gcv. The resultant model is below.
+
+```{r}
+lmr1 <- lm.ridge(eps ~ researchAndDevelopmentExpenses + interestIncome + currentRatio + 
+    quickRatio + grossProfitMargin + fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda, lambda = opt.lambda)
+lmr1
+```
+```{r}
+lmr1$coef
+```
+
+Method 2 to apply ridge regression using lmridge library.
+```{r method 2 ridge regression}
+#method 2
+library(lmridge)
+lmr2 <- lmridge(eps ~ researchAndDevelopmentExpenses + interestIncome + currentRatio + 
+    quickRatio + grossProfitMargin + fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda, scaling = "sc", K = opt.lambda)
+summary(lmr2); summary(m1)
+```
+
+It is interesting with this package that the ridge model has a greatly reduced R^2 value compared to the m2.
+```{r}
+lmr2$coef
+```
+```{r}
+plot(fitted(lmr2)~residuals(lmr2))
+```
+```{r}
+vif(lmr2)
+```
+The VIF from the ridge regression is under 10 for each predictor.
+```{r}
+kest(lmr2)
+```
+This confirms from method 1 that the optimal lambda 1.48 is correct according to GCV. 
+
+Next lmr3 is a ridge regression model that removes variables that were not signficant to model lmr2.
+```{r}
+lmr3 <- lmridge(eps ~ researchAndDevelopmentExpenses + interestIncome + currentRatio + 
+    quickRatio + grossProfitMargin, data = nvda, scaling = "sc", K = opt.lambda)
+summary(lmr2);summary(lmr3)
+```
+Here, the adjusted R^2 value does slightly increase when we remove the 'dayofInventoryOutstanding' and fixed asset turnover variable. Although the ridge regression does not allow anova comparison, the ridge MSE reduces, the r-squared value marginally increases, and the model is significant. The variation explained of the response, however, is not comparable to the non-ridge models. Yet, the F values (44) are much larger for the non-ridge models (144). 
+
+
+# ANOVA Comparisons
+This just experiments with models that remove the variables that cause multicollinearity.
+```{r}
+#remove current ratio
+m6 <- lm(eps ~ researchAndDevelopmentExpenses +interestIncome + 
+           depreciationAndAmortization + 
+    cashConversionCycle + quickRatio + grossProfitMargin + 
+    fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda)
+#remove quick ratio
+m7 <- lm(eps ~ researchAndDevelopmentExpenses +
+           interestIncome + depreciationAndAmortization + 
+    cashConversionCycle + currentRatio + grossProfitMargin + 
+    fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda)
+#remove both current and quick ratio
+m8 <- lm(eps ~ researchAndDevelopmentExpenses +
+           interestIncome + depreciationAndAmortization + 
+    cashConversionCycle + grossProfitMargin + 
+    fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda)
+anova(m6,m1); anova(m7,m1); anova(m8,m1)
+```
+According to the ANOVA table results, moving either current or quick ratio does not improve the explained variation in the model. 
+
+# Piecewise Linear Regression
+```{r}
+library(segmented)
+pw1 <- segmented(m1, seg.Z = ~ grossProfitMargin)
+summary(pw1)
+```
+```{r}
+pw2 <- segmented(m2, seg.Z = ~ grossProfitMargin)
+summary(pw2)
+```
+It is interesting here that the R-squared value of the reduced model by stepwise selection performs better here despite the results of the ANOVA analysis between m1 and m2 prior. 
+```{r}
+plot(pw1)
+car::vif(pw1)
+```
+Now there are issues of multicollinearity #sad-face
+```{r}
+plot(pw2)
+car::vif(pw2)
+```
+There is an effect. These models all present different challenges. The mlr violates normality assumptions. The ridge regression address issues of multicollinearity yet the variation explained by the predictors greatly reduces. Finally, the piecewise regression does show a great effect on the linear trend difference in grossProfit Margin. Yet, it exaggerates the issue of multicollinearity present. Maybe this is not a main concern when utilizing piecewise linear regression. Nontetheless, the issue of multicollinear predictors may just be a fact of the data.
+
+# Summary
+The initialized model with 10 predictors was reduced to 8 predictors with stepwise selection. After which, current and quick ratio were both selected for this model (m2). The VIF scores of this model are reported to be greater than 10 between the current and quick ratio. The correlation matrix also confirmed high correlation between the current and quick ratio estimates. As a result, ridge regression is applied to our MLM. Results of the MLM reduce the the VIF scores at an optimal lambda ($\lambda = 1.48$) identified from two methods provided in R. The conflict with the ridge models, however, is that the variation explained by the response variable has decreases. The tradeoff, however, is that the explained variation (R-squared value reduces from 98 to 30 percent). One may conclude that the validity of the m2 results are used for comparison with caution as normality assumptions are violated and there are issues of multicollinearity present in the model. The goal would be to increase the R-squared value of the ridge regression.
+
+(Techniques to log transform certain predictors did not benefit explained variation of the model)

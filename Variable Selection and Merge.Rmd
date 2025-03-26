@@ -1,0 +1,378 @@
+---
+title: "Exploratory Data Analysis"
+author: "Naomi Edegbe"
+date: "2025-02-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(car)
+```
+
+## Rudimentary EDA
+```{r EDA with aapl data}
+data <- read_csv("stocks/merge/aaplClean.csv")
+head(data)
+```
+ 
+Relevant columns for analysis: Year, eps, researchAndDevelopmentExpenses, debtEquity, grossProfitMargin, returnOnAssets, sellingGeneralAndAdministrative
+```{r obtain columns}
+#colnames(data)
+predictors <- c("eps","Year","stock","researchAndDevelopmentExpenses","interestIncome",
+                "depreciationAndAmortization","currentRatio", "quickRatio","grossProfitMargin",
+                "fixedAssetTurnover","assetTurnover","daysOfInventoryOutstanding",
+                "cashConversionCycle")
+```
+
+```{r modify dataset}
+data1 <- data %>%
+  select(predictors) %>%
+  mutate(grossProfitMargin = as.numeric(gsub("%", "", grossProfitMargin)))
+         
+head(data1)
+```
+
+```{r model 1}
+m1 <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, data1)
+summary(m1)
+```
+
+```{r step function}
+step(m1)
+```
+
+So based on the columns selected initially we should move forward with 
+- R&D: Research and Development
+- QuickRatio: The Quick Ratio, also known as the Acid-Test Ratio, measures a company's capacity to pay its current liabilities without needing to sell its inventory or obtain additional financing.
+- grossProfitMargin: Gross margin measures a company's gross profit compared to its revenues as a percentage.
+- daysOfInventoryOutstanding: Days of Inventory Outstanding (DIO) or sometimes called Days Sales of Inventory (DSI) is the average number of days it takes for a firm to sell off inventory.
+
+I wonder what the initial results would be if I combine the data frames and test the linear model again.
+
+```{r exploratory plots}
+ggplot(data1, aes(x= researchAndDevelopmentExpenses, y= eps))+
+  geom_point()+
+  labs(x="R&D", y="EPS")+
+  theme_bw()
+
+ggplot(data1, aes(x= grossProfitMargin, y= eps))+
+  geom_point()+
+  labs(x="Gross Profit Margin", y="EPS")+
+  theme_bw()
+
+ggplot(data1, aes(x= interestIncome, y= eps))+
+  geom_point()+
+  labs(x="Interest Income", y="EPS")+
+  theme_bw()
+
+ggplot(data1, aes(x= daysOfInventoryOutstanding, y= eps))+
+  geom_point()+
+  labs(x="Days of Inventory Outstanding", y="EPS")+
+  theme_bw()
+
+```
+These plots may be more interesting if we include year or age of company as a variable.
+
+# Read Dataframes
+```{r obtain data}
+aapl <- read.csv("stocks/merge/aaplClean.csv")
+amzn <- read.csv("stocks/merge/amznClean.csv")
+googl <- read.csv("stocks/merge/googlClean.csv")
+avgop <- read.csv("stocks/merge/avgopClean.csv")
+meta <- read.csv("stocks/merge/metaClean.csv")
+msft <- read.csv("stocks/merge/msftClean.csv")
+tsla <- read.csv("stocks/merge/tslaClean.csv")
+nvda <- read.csv("stocks/merge/nvdaClean.csv")
+```
+
+# Initial variables and reducing dataframe
+This is just a list of the  variables I assume to be most interesting for potential analysis of a linear model. The task is to create a model that really only includes six variables.
+```{r variables of interest}
+variables <- c("eps","Year","stock","researchAndDevelopmentExpenses","interestIncome",
+                "depreciationAndAmortization","currentRatio", "quickRatio","grossProfitMargin",
+                "fixedAssetTurnover","assetTurnover","daysOfInventoryOutstanding",
+                "cashConversionCycle")
+```
+
+```{r select variables for each df}
+#mc = market cap
+reduceDf <- function(df, variables, mc){
+  df <- df %>%
+    dplyr::select(all_of(variables))) %>%
+    mutate(stock = as.factor(stock),
+           Year = as.factor(Year),
+           MC = mc,
+           researchAndDevelopmentExpenses = as.numeric(gsub(",", "",researchAndDevelopmentExpenses)),
+           interestIncome = as.numeric(gsub(",", "", interestIncome)),
+           daysOfInventoryOutstanding = as.numeric(gsub(",", "", daysOfInventoryOutstanding)),
+           depreciationAndAmortization = as.numeric(gsub(",","",depreciationAndAmortization)),
+           cashConversionCycle = as.numeric(gsub(",","",cashConversionCycle)),
+           grossProfitMargin = as.numeric(gsub("%", "", grossProfitMargin)))
+  return(df)
+}
+```
+
+```{r run function and merge frames}
+aapl1 <- reduceDf(aapl, variables, "3T")
+amzn1 <- reduceDf(amzn, variables, "2T")
+avgop1 <- reduceDf(avgop, variables, "1T")
+googl1 <- reduceDf(googl, variables, "2T")
+meta1 <- reduceDf(meta, variables, "1T")
+tsla1 <- reduceDf(tsla, variables, "1T")
+nvda1 <- reduceDf(nvda, variables, "3T")
+msft1 <- reduceDf(msft, variables, "3T")
+
+```
+
+```{r}
+#write.csv(aapl1, "stocks/merge/aaplClean1.csv", row.names = FALSE)
+#write.csv(amzn1, "stocks/merge/amznClean1.csv", row.names = FALSE)
+#write.csv(googl1, "stocks/merge/googlClean1.csv", row.names = FALSE)
+#write.csv(avgop1, "stocks/merge/avgopClean1.csv", row.names = FALSE)
+#write.csv(meta1, "stocks/merge/metaClean1.csv", row.names = FALSE)
+#write.csv(msft1, "stocks/merge/msftClean1.csv", row.names = FALSE)
+#write.csv(tsla1, "stocks/merge/tslaClean1.csv", row.names = FALSE)
+#write.csv(nvda1, "stocks/merge/nvdaClean1.csv", row.names = FALSE)
+```
+
+
+
+```{r verify reduction}
+head(amzn1)
+```
+Based on the global environment all 14 variables of interest are included for stepwise selection.
+```{r inital model each stock }
+#3T
+m1_aapl <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, aapl1)
+
+m1_msft <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, msft1)
+
+m1_nvda <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, nvda1)
+
+#2T
+m1_amzn <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, amzn1)
+
+
+m1_googl <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, googl1)
+
+#1T
+m1_tsla <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, tsla1)
+
+m1_meta <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization + currentRatio + quickRatio +
+           grossProfitMargin + fixedAssetTurnover + assetTurnover +
+           daysOfInventoryOutstanding + cashConversionCycle, meta1)
+
+
+```
+
+
+```{r step AIC analysis part 1}
+#m2_aapl <- step(m1_aapl)
+#m2_msft <- step(m1_msft)
+#m2_nvda <- step(m1_nvda)
+#m2_amzn <- step(m1_amzn)
+#m2_googl <- step(m1_googl)
+#m2_tsla <- step(m1_tsla)
+#m2_meta <- step(m1_meta)
+```
+
+Apple: researchAndDevelopmentExpenses + interestIncome + 
+    currentRatio + grossProfitMargin + fixedAssetTurnover
+
+Microsoft: researchAndDevelopmentExpenses + currentRatio + quickRatio + 
+    grossProfitMargin + fixedAssetTurnover + daysOfInventoryOutstanding
+
+Nvidia: researchAndDevelopmentExpenses + interestIncome + 
+    currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover + 
+    assetTurnover + daysOfInventoryOutstanding + cashConversionCycle
+    
+Amzn: interestIncome + currentRatio + quickRatio + grossProfitMargin + 
+    daysOfInventoryOutstanding + cashConversionCycle
+    
+Google: interestIncome + quickRatio + grossProfitMargin + daysOfInventoryOutstanding + 
+    cashConversionCycle
+    
+Meta n/a
+Tesla: researchAndDevelopmentExpenses + interestIncome + depreciationAndAmortization + 
+    currentRatio + daysOfInventoryOutstanding
+
+Okay, so after the second run through, variables that I should expect to be largely important are:
+1. R&D (4/6)
+2. Interest Income (5/6)
+3. Gross Profit Margin (5/6)
+4. Fixed Asset Turnover (3/6)
+5. Days of Inventory outstanding (5/6)
+6. Current Ratio (5/6)
+It is interesting to see what happens when I attempt variable reduction this way. I will likely keep both quick and current ratio
+
+So the resulting variables are: 
+1. R&D
+2. Interest Income
+3. Current Ratio
+4. Quick Ratio
+5. Days of Inventory Outstanding
+6. Fixed Asset Turnover
+7. Gross Profit Margin (2/4)
+
+```{r models with reduced variables}
+m2_aapl <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, aapl1)
+
+m2_amzn <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, amzn1)
+
+m2_googl <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, googl1)
+
+m2_meta <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, meta1)
+
+m2_msft <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, msft1)
+
+m2_nvda <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, nvda1)
+
+m2_tsla <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, tsla1)
+
+m2_avgop <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, avgop1)
+```
+
+
+# Vertically merge data frames
+```{r}
+merge1 <- bind_rows(aapl1, amzn1)
+merge2 <- bind_rows(merge1, googl1)
+merge3 <- bind_rows(merge2, meta1)
+merge4 <- bind_rows(merge3, tsla1)
+merge5 <- bind_rows(merge4, nvda1)
+merge6 <- bind_rows(merge5, msft1)
+merge7 <- bind_rows(merge6, avgop1)
+```
+
+
+```{r}
+write.csv(merge7, "stocks/merge/allStocks.csv", row.names = FALSE)
+```
+
+```{r}
+allStocks <- read_csv("stocks/merge/allStocks.csv")
+```
+
+```{r}
+m4_all <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding + factor(MC), allStocks)
+summary(m4_all); anova(m4_all)
+```
+```{r multicollinearity check}
+vif(m4_all)
+```
+
+
+
+
+
+Okay so including quick and current ratio lead to multicollinearity. May be a fruitful evaluation for later analysis.
+```{r research and development}
+allStocks %>%
+  ggplot(aes(x=researchAndDevelopmentExpenses, y = eps))+
+  geom_point()+
+  labs(x="R and D", y = "Earnings Per Share")+
+  facet_wrap(~factor(MC))+
+  theme_classic()
+
+allStocks %>%
+  ggplot(aes(x=researchAndDevelopmentExpenses, y = eps, color = factor(MC)))+
+  geom_point()+
+  labs(x="R and D", y = "Earnings Per Share")+
+  theme_classic()
+
+allStocks %>%
+  ggplot(aes(x=researchAndDevelopmentExpenses, y = eps, color = factor(stock)))+
+  geom_point()+
+  labs(x="R and D", y = "Earnings Per Share")+
+  theme_classic()
+```
+```{r graph currentRatio}
+allStocks %>%
+  ggplot(aes(x=currentRatio, y = eps))+
+  geom_point()+
+  labs(x="currentRatio", y = "Earnings Per Share")+
+  facet_wrap(~factor(MC))+
+  theme_classic()
+
+allStocks %>%
+  ggplot(aes(x=currentRatio, y = eps, color = factor(MC)))+
+  geom_point()+
+  labs(x= "currentRatio", y = "Earnings Per Share")+
+  theme_classic()
+
+```
+It's interesting that the placement between 3T and 2T stocks are pretty flipped here.
+
+```{r graph interest income}
+allStocks %>%
+  ggplot(aes(x=interestIncome, y = eps))+
+  geom_point()+
+  labs(x="interestIncome", y = "Earnings Per Share")+
+  facet_wrap(~factor(MC))+
+  theme_classic()
+
+allStocks %>%
+  ggplot(aes(x=interestIncome, y = eps, color = factor(MC)))+
+  geom_point()+
+  labs(x= "interestIncome", y = "Earnings Per Share")+
+  theme_classic()
+```
+
+```{r graph gross profit margin}
+allStocks %>%
+  ggplot(aes(x=grossProfitMargin, y = eps))+
+  geom_point()+
+  labs(x="grossProfitMargin", y = "Earnings Per Share")+
+  facet_wrap(~factor(MC))+
+  theme_classic()
+
+allStocks %>%
+  ggplot(aes(x=grossProfitMargin, y = eps, color = factor(MC)))+
+  geom_point()+
+  labs(x= "grossProfitMargin", y = "Earnings Per Share")+
+  theme_classic()
+```

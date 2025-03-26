@@ -1,0 +1,99 @@
+---
+title: "Exploratory Data Analysis"
+author: "Naomi Edegbe"
+date: "2025-02-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+## Summary
+This document will provide analysis for stocks with a 3T market cap to include Apple, Nvidia, Microsoft.
+
+## Data
+```{r data}
+aapl <- read_csv("stocks/merge/aaplClean1.csv")
+aapl$Year <- as.numeric(aapl$Year)
+head(aapl)
+```
+Need to remove LTM row.
+```{r}
+m0 <- lm(eps ~researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization+ cashConversionCycle+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, aapl)
+summary(m0)
+```
+While the adjusted R square is quite high, none of the predictors are significant to the model. Model 1 will include the seven variables chosen prior.
+```{r m1}
+m1 <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, aapl)
+
+summary(m1);
+```
+We see from the p-value that this is a signficant model. We may also determine from model results that R&D, Gross profit margin, and days of inventory outstanding have effects on the model.
+
+```{r stepwise selection}
+step(m0)
+```
+Additionally, the stepwise AIC choses the following model as best performing for potential analysis.
+```{r m2}
+m2 <- lm(eps ~ researchAndDevelopmentExpenses + quickRatio + 
+    grossProfitMargin + daysOfInventoryOutstanding, data = aapl)
+summary(m2)
+```
+The R-squared value marginally increased with the reduced variables. Next, we test the nested vs complete model.
+```{r anova comparisons}
+anova(m1,m0); anova(m2,m1)
+```
+It is interesting that the p-values for each model are not significant. This typically indicates that the variable reduction is not significant to improving the model despite the fact that the model with reduced variables has more signficant predictors. I will assess the residual assumptions for normality next.
+```{r residual plots}
+plot(m2)
+```
+According to the Q-Q plot, the data is heavy tailed. Additionally, the residual vs. fitted plot has a clustering of values about 0 on the x-axis. 
+
+```{r residual normality}
+shapiro.test(m2$residuals)
+```
+Based on the p-value (0.00043) of the test of the residuals, there is sufficient evidence to reject the null and conclude the residuals are not normally distributed. 
+
+```{r collinearity}
+vif(m2)
+```
+The VIF is not greater than 10 for any value. Hence, there is no issues of multicollinearity present in the selected model. 
+
+
+# Apple
+## Exploratory Plots:
+```{r plot against response}
+#par(mfrow=c(2,3))
+plot(eps~Year, aapl)
+plot(eps~researchAndDevelopmentExpenses, aapl)
+plot(eps~grossProfitMargin, aapl)
+plot(eps~quickRatio, aapl)
+plot(eps~daysOfInventoryOutstanding, aapl)
+```
+P1: Over time, the eps of the appl stock rose. 
+P2: R&D and EPS appear to have a positive linear relationship.
+P3: There is a strange peak about 40% for grossProfitMargin.
+P4: Quick ratio and EPS appear to have a negative linear relationship.
+P5: Lower days of inventory outstanding has a positive influence on eps. There may be a piecewise linear relationship taht can be assessed between eps and days of Inventory Outstanding in the model.
+
+```{r plot with other explanatory}
+plot(grossProfitMargin~researchAndDevelopmentExpenses, aapl)
+plot(researchAndDevelopmentExpenses~quickRatio, aapl)
+plot(grossProfitMargin~quickRatio, aapl)
+plot(grossProfitMargin~daysOfInventoryOutstanding, aapl)
+```
+
+
+
+
+

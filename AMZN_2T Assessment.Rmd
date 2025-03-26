@@ -1,0 +1,123 @@
+---
+title: "AMZN_2T Assessment"
+author: "Naomi Edegbe"
+date: "2025-03-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+## Summary
+This document will provide analysis for stocks with a 3T market cap to include Apple, Nvidia, Microsoft.
+
+## Data
+```{r data}
+amzn <- read_csv("stocks/merge/amznClean1.csv")
+amzn$Year <- as.numeric(amzn$Year)
+amzn <- amzn %>% filter(row_number() <= n()-1) #remove LTM row
+head(amzn)
+```
+
+```{r m0}
+m0 <- lm(eps ~researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization+ cashConversionCycle+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, amzn)
+summary(m0)
+```
+The r-squared value is less than 0.90. We move forward with Model 1 that will include the seven variables chosen prior.
+```{r m1}
+m1 <- lm(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, amzn)
+
+summary(m1);
+```
+Based on the r-squared value this model is actually worse. So I will conduct stepwise selection on m0.
+
+```{r stepwise selection}
+step(m0)
+```
+Additionally, the stepwise AIC choses the following model as best performing for potential analysis.
+```{r m2}
+m2 <- lm(eps ~ researchAndDevelopmentExpenses + depreciationAndAmortization, data = amzn)
+summary(m2)
+```
+The adjusted R-squared value actually decreases in this model. with the reduced variables. Next, we test the nested vs complete model.
+```{r anova comparisons}
+anova(m2,m0)
+```
+It is not surprising that the p-value (0.8179) is not significant. This typically indicates that the variable reduction is not significant to improving the model despite the fact that the model with reduced variables has more signficant predictors. I will assess the residual assumptions for normality next.
+```{r residual plots}
+plot(m0)
+```
+According to the Q-Q plot, the data is heavy tailed but it is not as severe compared to 
+
+```{r residual normality}
+shapiro.test(m2$residuals)
+```
+Based on the p-value (0.00043) of the test of the residuals, there is sufficient evidence to reject the null and conclude the residuals are not normally distributed. 
+
+```{r collinearity}
+car::vif(m0)
+```
+There are many predictors with a VIF greater than 10. 
+
+```{r correlation matrix}
+# computing correlation matrix
+cor_data = cor(nvda[,c(4:12)])
+ 
+print("Correlation matrix")
+print(cor_data)
+```
+Three pairs: R&D with interest Income and depreciation and Amortization, current and quick ratio, so many.
+
+# Quick Ridge Regression
+```{r ridge regression}
+library(MASS)
+lambda1 <- seq(0,10,0.01)
+lmr0 <- lm.ridge(eps ~ researchAndDevelopmentExpenses + interestIncome+
+           depreciationAndAmortization+ cashConversionCycle+
+           currentRatio + quickRatio + grossProfitMargin + fixedAssetTurnover +
+           daysOfInventoryOutstanding, data = amzn, lambda = lambda1)
+gcv <- lmr0$GCV
+
+i = 1:length(gcv)
+location = i[gcv[i]==min(gcv)]
+opt.lambda = lambda1[location]
+opt.lambda
+```
+```{r method 2 ridge regression}
+#method 2
+library(lmridge)
+lmr2 <- lmridge(eps ~ researchAndDevelopmentExpenses + interestIncome + currentRatio + 
+    quickRatio + grossProfitMargin + fixedAssetTurnover + daysOfInventoryOutstanding, data = nvda, scaling = "sc", K = opt.lambda)
+summary(lmr2)
+```
+Wow. I may just need to use the google stock data.
+
+# Apple
+## Exploratory Plots:
+```{r plot against response}
+#par(mfrow=c(2,3))
+plot(eps~Year, amzn)
+plot(eps~researchAndDevelopmentExpenses, amzn)
+plot(eps~grossProfitMargin, amzn)
+plot(eps~quickRatio, amzn)
+plot(eps~depreciationAndAmortization, amzn)
+```
+P3: I think grossProfit Margin could be a variable with a piecewise relationship to eps.
+
+
+
+
+
+
+
+
