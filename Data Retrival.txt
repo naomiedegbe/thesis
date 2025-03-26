@@ -1,0 +1,4 @@
+The stock data obtained for this analysis comes from https://discountingcashflows.com/. An example url for Apple stock is 
+https://discountingcashflows.com/company/AAPL/income-statement/
+
+1. Files renamed and changed from .xslx to .csv
